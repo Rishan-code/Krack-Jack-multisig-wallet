@@ -1,5 +1,15 @@
-# Compiler files
+# Dependencies
+node_modules/
+
+# Hardhat
 cache/
+artifacts/
+coverage/
+coverage.json
+gas-report.txt
+typechain-types/
+
+# Foundry (legacy)
 out/
 
 # Ignores development broadcast logs
@@ -12,3 +22,7 @@ docs/
 
 # Dotenv file
 .env
+
+# Frontend generated files
+frontend/deployment.json
+frontend/abi.json

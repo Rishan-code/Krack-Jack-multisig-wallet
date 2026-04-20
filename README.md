@@ -1,66 +1,179 @@
-## Foundry
+# 🔐 Multi-Signature Wallet (MultiSig Vault)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+**CS 218 — Programmable & Interoperable Blockchain | Project 10**
 
-Foundry consists of:
+A shared treasury wallet requiring **M-of-N owner signatures** before any transaction executes. Modeled after the Gnosis Safe architecture — the most widely used multi-sig in DeFi, holding over $50 billion in assets.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+---
 
-## Documentation
+## 👥 Team: Krack-Jack
 
-https://book.getfoundry.sh/
+| Name | Roll Number |
+|------|-------------|
+| Member 1 | XXXXXXXXX |
+| Member 2 | XXXXXXXXX |
+| Member 3 | XXXXXXXXX |
 
-## Usage
+> ⚠️ **Update the table above with your actual team member names and roll numbers.**
 
-### Build
+---
 
-```shell
-$ forge build
+## 📋 Features
+
+- **M-of-N Approval**: Configurable threshold — any combination (e.g., 2-of-3, 3-of-5)
+- **Submit Transactions**: Any owner can propose a transaction (recipient, ETH value, calldata)
+- **Approve / Revoke**: Each owner independently approves or revokes their approval
+- **Execute**: Once M approvals are reached, any owner can trigger execution
+- **Calldata Execution**: Execute arbitrary function calls on external contracts
+- **Reentrancy Protection**: OpenZeppelin `ReentrancyGuard` + Checks-Effects-Interactions pattern
+- **Gas Optimized**: Custom errors instead of revert strings, storage caching
+- **Frontend DApp**: MetaMask-connected UI to manage all wallet operations
+
+---
+
+## 🏗️ Architecture
+
+```
+contracts/
+├── MultiSigWallet.sol          # Main multi-sig wallet contract
+├── SimpleCounter.sol            # Helper contract for calldata testing
+└── test/
+    └── ReentrancyAttacker.sol   # Attack contract for security testing
+
+test/
+└── MultiSigWallet.test.js      # Comprehensive test suite (39 tests)
+
+scripts/
+└── deploy.js                   # Hardhat deployment script
+
+frontend/
+├── index.html                   # DApp UI
+├── styles.css                   # Dark theme styling
+├── app.js                       # ethers.js + MetaMask integration
+├── abi.json                     # Contract ABI (auto-generated on deploy)
+└── deployment.json              # Deployment addresses (auto-generated)
 ```
 
-### Test
+---
 
-```shell
-$ forge test
+## 🚀 Setup & Installation
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [MetaMask](https://metamask.io/) browser extension
+- Git
+
+### 1. Clone & Install
+
+```bash
+git clone https://github.com/Rishan-code/Krack-Jack-multisig-wallet.git
+cd Krack-Jack-multisig-wallet
+npm install
 ```
 
-### Format
+### 2. Compile Contracts
 
-```shell
-$ forge fmt
+```bash
+npx hardhat compile
 ```
 
-### Gas Snapshots
+### 3. Run Tests
 
-```shell
-$ forge snapshot
+```bash
+# Run all tests
+npx hardhat test
+
+# Run tests with gas reporting
+REPORT_GAS=true npx hardhat test
+
+# Run tests with verbose output
+npx hardhat test --verbose
 ```
 
-### Anvil
+### 4. Check Coverage
 
-```shell
-$ anvil
+```bash
+npx hardhat coverage
 ```
 
-### Deploy
+### 5. Deploy to Local Network
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```bash
+# Terminal 1: Start local Hardhat node
+npx hardhat node
+
+# Terminal 2: Deploy contracts
+npx hardhat run scripts/deploy.js --network localhost
 ```
 
-### Cast
+### 6. Run Frontend DApp
 
-```shell
-$ cast <subcommand>
-```
+After deploying, open `frontend/index.html` in your browser. The deployment script auto-generates `abi.json` and `deployment.json` in the frontend folder.
 
-### Help
+**MetaMask Setup for Local Testing:**
+1. Add Hardhat Network: RPC URL `http://127.0.0.1:8545`, Chain ID `31337`
+2. Import test accounts using private keys from `npx hardhat node` output
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+---
+
+## 📄 Contract Functions
+
+| Function | Access | Description |
+|----------|--------|-------------|
+| `constructor(owners[], requiredApprovals)` | — | Initializes wallet with owners and M threshold |
+| `submitTransaction(to, value, data)` | Owner | Proposes a new transaction, returns `txId` |
+| `approveTransaction(txId)` | Owner | Signals approval for a pending transaction |
+| `revokeApproval(txId)` | Owner | Withdraws approval before execution |
+| `executeTransaction(txId)` | Owner | Executes transaction when M approvals reached |
+| `getTransaction(txId)` | Anyone | Returns transaction details (view) |
+| `getApprovers(txId)` | Anyone | Returns list of approving addresses (view) |
+| `getTransactionCount()` | Anyone | Returns total submitted transactions (view) |
+| `getOwners()` | Anyone | Returns list of all owners (view) |
+| `receive()` | Anyone | Allows wallet to receive ETH |
+
+---
+
+## 🔒 Security Features
+
+1. **ReentrancyGuard** (OpenZeppelin) — Applied to `executeTransaction()` to prevent reentrancy attacks during external calls
+2. **Checks-Effects-Interactions (CEI)** — Transaction marked as `executed = true` **before** the external `.call()`
+3. **Input Validation** — All functions validate inputs (zero addresses, duplicate owners, invalid txIds)
+4. **Access Control** — `onlyOwner` modifier restricts all state-changing functions
+5. **Custom Errors** — Gas-efficient custom errors instead of long revert strings
+
+---
+
+## ⛽ Gas Optimization
+
+See [gas-report.md](./gas-report.md) for the full gas report and before/after optimization analysis.
+
+**Key Optimizations Applied:**
+- **Custom Errors** over `require()` strings — saves ~200 gas per revert
+- **Storage Caching** — `Transaction storage txn = transactions[_txId]` avoids repeated SLOAD
+- **`uint256`** for all counters — avoids extra gas for smaller integer packing
+- **`external`** visibility on public-facing functions — cheaper than `public` for calldata
+- **Optimizer enabled** at 200 runs
+
+---
+
+## 🧪 Test Coverage
+
+The test suite includes **39 tests** covering:
+
+- ✅ Constructor validation (empty owners, zero approvals, duplicates, zero-address)
+- ✅ Submit transaction (owner-only, event emission)
+- ✅ Approve transaction (owner-only, double-approve prevention, executed check)
+- ✅ Revoke approval (decrement count, block execution until re-approved)
+- ✅ Execute transaction (threshold check, CEI pattern, re-execute prevention)
+- ✅ Calldata execution (SimpleCounter increment via multi-sig)
+- ✅ ETH handling (receive, deposit event, send on execute)
+- ✅ Full happy path (submit → approve → execute → verify state)
+- ✅ Reentrancy attack prevention
+- ✅ View function correctness
+
+---
+
+## 📝 License
+
+MIT
