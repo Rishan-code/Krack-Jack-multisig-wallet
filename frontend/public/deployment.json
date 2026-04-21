@@ -1,0 +1,10 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "MultiSigWallet": "0x62A61c601920C2e9E32eFf06BafdcadBa16b8Eef",
+  "owners": [
+    "0xc4BF409e4B241E09cE008067C0B421088719f705"
+  ],
+  "requiredApprovals": 1,
+  "deployedAt": "2026-04-21T18:31:57.539Z"
+}

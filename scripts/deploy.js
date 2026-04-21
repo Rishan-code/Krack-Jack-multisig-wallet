@@ -55,24 +55,24 @@ async function main() {
     requiredApprovals: requiredApprovals,
   };
 
-  const frontendDir = path.join(__dirname, "..", "frontend");
-  if (!fs.existsSync(frontendDir)) {
-    fs.mkdirSync(frontendDir, { recursive: true });
+  const frontendPublicDir = path.join(__dirname, "..", "frontend", "public");
+  if (!fs.existsSync(frontendPublicDir)) {
+    fs.mkdirSync(frontendPublicDir, { recursive: true });
   }
 
   fs.writeFileSync(
-    path.join(frontendDir, "deployment.json"),
+    path.join(frontendPublicDir, "deployment.json"),
     JSON.stringify(deploymentInfo, null, 2)
   );
 
   // Copy ABI
   const artifact = require("../artifacts/contracts/MultiSigWallet.sol/MultiSigWallet.json");
   fs.writeFileSync(
-    path.join(frontendDir, "abi.json"),
+    path.join(frontendPublicDir, "abi.json"),
     JSON.stringify(artifact.abi, null, 2)
   );
 
-  console.log("\n✅ Deployment info and ABI written to frontend/");
+  console.log("\n✅ Deployment info and ABI written to frontend/public/");
   console.log("\nDone!");
 }
 
