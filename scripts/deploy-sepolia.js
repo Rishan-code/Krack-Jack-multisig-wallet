@@ -16,10 +16,18 @@ async function main() {
     process.exit(1);
   }
 
-  // ─── Deploy MultiSigWallet (1-of-1 with deployer as sole owner) ───
-  // For testing, we use 1-of-1. Adjust owners/threshold for production.
-  const owners = [deployer.address];
-  const requiredApprovals = 1;
+  // ─── Deploy MultiSigWallet (2-of-3 with deployer as primary owner) ───
+  // Generate 2 random wallets for testing the multi-sig on live testnet
+  const owner2 = ethers.Wallet.createRandom();
+  const owner3 = ethers.Wallet.createRandom();
+  const owners = [deployer.address, owner2.address, owner3.address];
+  const requiredApprovals = 2;
+
+  console.log("\n--- Generated Additional Testing Owners ---");
+  console.log("Owner 2 Address:", owner2.address);
+  console.log("Owner 2 Private Key (Save this to import into MetaMask):", owner2.privateKey);
+  console.log("Owner 3 Address:", owner3.address);
+  console.log("Owner 3 Private Key (Save this to import into MetaMask):", owner3.privateKey);
 
   console.log("\n--- Deploying MultiSigWallet ---");
   console.log("Owners:", owners);
