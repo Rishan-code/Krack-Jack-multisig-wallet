@@ -16,18 +16,18 @@ async function main() {
     process.exit(1);
   }
 
-  // ─── Deploy MultiSigWallet (2-of-3 with deployer as primary owner) ───
-  // Generate 2 random wallets for testing the multi-sig on live testnet
-  const owner2 = ethers.Wallet.createRandom();
-  const owner3 = ethers.Wallet.createRandom();
-  const owners = [deployer.address, owner2.address, owner3.address];
+  // ─── Real Wallet Addresses for Your Presentation ───
+  // PASTE YOUR FRIENDS' PUBLIC ADDRESSES HERE
+  const owner2Address = "0xD09Ac8D6b2E294cdd6002774A3a41Ae383448E13";
+  const owner3Address = "0xd4eAcC38882e10DC3d8B665fC38244902d0cD4d0";
+
+  const owners = [deployer.address, owner2Address, owner3Address];
   const requiredApprovals = 2;
 
-  console.log("\n--- Generated Additional Testing Owners ---");
-  console.log("Owner 2 Address:", owner2.address);
-  console.log("Owner 2 Private Key (Save this to import into MetaMask):", owner2.privateKey);
-  console.log("Owner 3 Address:", owner3.address);
-  console.log("Owner 3 Private Key (Save this to import into MetaMask):", owner3.privateKey);
+  console.log("\n--- Wallet Owners ---");
+  console.log("Owner 1 (You):", deployer.address);
+  console.log("Owner 2 (Friend 1):", owner2Address);
+  console.log("Owner 3 (Friend 2):", owner3Address);
 
   console.log("\n--- Deploying MultiSigWallet ---");
   console.log("Owners:", owners);

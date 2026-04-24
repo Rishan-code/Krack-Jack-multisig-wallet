@@ -1,11 +1,12 @@
 {
-  "network": "localhost",
-  "MultiSigWallet": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
-  "SimpleCounter": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "MultiSigWallet": "0xDDed6e2eC0aEa52234803d91F7B2CB52486bE9aA",
   "owners": [
-    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+    "0xc4BF409e4B241E09cE008067C0B421088719f705",
+    "0xD09Ac8D6b2E294cdd6002774A3a41Ae383448E13",
+    "0xd4eAcC38882e10DC3d8B665fC38244902d0cD4d0"
   ],
-  "requiredApprovals": 2
+  "requiredApprovals": 2,
+  "deployedAt": "2026-04-24T17:24:17.952Z"
 }
