@@ -16,6 +16,11 @@
     "type": "constructor"
   },
   {
+    "inputs": [],
+    "name": "CannotRemoveLastOwner",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -48,7 +53,55 @@
   },
   {
     "inputs": [],
+    "name": "OnlyWallet",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnerAlreadyExists",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnerDoesNotExist",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "required",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ownerCount",
+        "type": "uint256"
+      }
+    ],
+    "name": "RequirementTooHigh",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SubmitToZeroAddress",
     "type": "error"
   },
   {
@@ -162,6 +215,45 @@
     "inputs": [
       {
         "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnerAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnerRemoved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "required",
+        "type": "uint256"
+      }
+    ],
+    "name": "RequirementChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "uint256",
         "name": "txId",
         "type": "uint256"
@@ -193,6 +285,23 @@
     ],
     "name": "TransactionSubmitted",
     "type": "event"
+  },
+  {
+    "stateMutability": "payable",
+    "type": "fallback"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      }
+    ],
+    "name": "addOwner",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [
@@ -229,6 +338,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_requiredApprovals",
+        "type": "uint256"
+      }
+    ],
+    "name": "changeRequirement",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -364,6 +486,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_owner",
+        "type": "address"
+      }
+    ],
+    "name": "removeOwner",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

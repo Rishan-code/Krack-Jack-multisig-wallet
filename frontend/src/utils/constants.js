@@ -9,6 +9,9 @@ export const CONTRACT_ABI = [
   "event Approved(uint256 indexed txId, address indexed owner)",
   "event ApprovalRevoked(uint256 indexed txId, address indexed owner)",
   "event Executed(uint256 indexed txId, address indexed owner)",
+  "event OwnerAdded(address indexed owner)",
+  "event OwnerRemoved(address indexed owner)",
+  "event RequirementChanged(uint256 required)",
   "function owners(uint256) view returns (address)",
   "function isOwner(address) view returns (bool)",
   "function requiredApprovals() view returns (uint256)",
@@ -18,11 +21,15 @@ export const CONTRACT_ABI = [
   "function approveTransaction(uint256 _txId)",
   "function revokeApproval(uint256 _txId)",
   "function executeTransaction(uint256 _txId)",
+  "function addOwner(address _owner)",
+  "function removeOwner(address _owner)",
+  "function changeRequirement(uint256 _requiredApprovals)",
   "function getTransaction(uint256 _txId) view returns (address to, uint256 value, bytes data, uint256 approvalCount, bool executed)",
   "function getApprovers(uint256 _txId) view returns (address[])",
   "function getTransactionCount() view returns (uint256)",
   "function getOwners() view returns (address[])",
   "receive() payable",
+  "fallback() payable",
 ];
 
 export const DEFAULT_CONFIG = {
