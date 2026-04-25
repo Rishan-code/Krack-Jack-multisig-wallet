@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { CONTRACT_ABI } from "./constants";
 
 export function truncateAddress(addr) {
   if (!addr) return "";
@@ -12,9 +13,40 @@ export function truncateData(data) {
 }
 
 export function extractErrorMsg(err) {
+  // 1. Try to extract the raw hex data payload from the MetaMask error
+  let errorData = err.data;
+  if (!errorData && err.info && err.info.error && err.info.error.data) {
+    errorData = err.info.error.data;
+  }
+  if (!errorData && err.error && err.error.data) {
+    errorData = err.error.data;
+  }
+
+  // 2. If we found hex data (the "random string"), try to decode it with our ABI
+  if (errorData && typeof errorData === "string" && errorData.startsWith("0x")) {
+    try {
+      const iface = new ethers.Interface(CONTRACT_ABI);
+      const parsedError = iface.parseError(errorData);
+      if (parsedError) {
+        // This will return the exact name of your custom error, e.g., "NotOwner" or "TransactionAlreadyExecuted"
+        let msg = parsedError.name;
+        // If the error has arguments (like RequirementTooHigh(uint256, uint256)), we can format it:
+        if (parsedError.args && parsedError.args.length > 0) {
+           msg += ` (${parsedError.args.join(", ")})`;
+        }
+        return msg;
+      }
+    } catch (e) {
+      console.warn("Could not parse custom error data:", errorData);
+    }
+  }
+
+  // 3. Fallbacks for standard errors
   if (err.reason) return err.reason;
+  if (err.shortMessage) return err.shortMessage; // Ethers v6 standard short message
   if (err.data && err.data.message) return err.data.message;
   if (err.message && err.message.length < 120) return err.message;
+  
   return "Transaction reverted";
 }
 

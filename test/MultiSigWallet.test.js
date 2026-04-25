@@ -43,6 +43,25 @@ describe("MultiSigWallet", function () {
   }
 
   // ──────────────────────────────────────────────────────────
+  //  Helper: submit → approve → execute a governance tx
+  // ──────────────────────────────────────────────────────────
+
+  /**
+   * Submits a transaction targeting the wallet itself with encoded calldata,
+   * has owner1 and owner2 approve it, then owner1 executes it.
+   */
+  async function executeGovernanceTx(wallet, owner1, owner2, calldata) {
+    const txId = await wallet.getTransactionCount();
+    await wallet
+      .connect(owner1)
+      .submitTransaction(wallet.target, 0, calldata);
+    await wallet.connect(owner1).approveTransaction(txId);
+    await wallet.connect(owner2).approveTransaction(txId);
+    await wallet.connect(owner1).executeTransaction(txId);
+    return txId;
+  }
+
+  // ──────────────────────────────────────────────────────────
   //  Constructor Tests
   // ──────────────────────────────────────────────────────────
 
@@ -160,6 +179,17 @@ describe("MultiSigWallet", function () {
           .connect(nonOwner)
           .submitTransaction(recipient.address, ethers.parseEther("1"), "0x")
       ).to.be.revertedWithCustomError(wallet, "NotOwner");
+    });
+
+    it("Should revert when submitting to the zero address", async function () {
+      const { wallet, owner1 } =
+        await loadFixture(deployWalletFixture);
+
+      await expect(
+        wallet
+          .connect(owner1)
+          .submitTransaction(ethers.ZeroAddress, ethers.parseEther("1"), "0x")
+      ).to.be.revertedWithCustomError(wallet, "SubmitToZeroAddress");
     });
   });
 
@@ -537,6 +567,483 @@ describe("MultiSigWallet", function () {
       expect(recipientBalanceAfter - recipientBalanceBefore).to.equal(
         sendAmount
       );
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  //  Fallback Function Tests
+  // ──────────────────────────────────────────────────────────
+
+  describe("Fallback Function", function () {
+    it("Should receive ETH with non-empty calldata via fallback() and emit Deposit", async function () {
+      const { wallet, owner1 } = await loadFixture(deployWalletFixture);
+
+      const depositAmount = ethers.parseEther("2");
+
+      // Send ETH with arbitrary calldata — triggers fallback() not receive()
+      await expect(
+        owner1.sendTransaction({
+          to: wallet.target,
+          value: depositAmount,
+          data: "0xdeadbeef",
+        })
+      )
+        .to.emit(wallet, "Deposit")
+        .withArgs(owner1.address, depositAmount);
+    });
+
+    it("Should accept ETH with non-matching function selector via fallback()", async function () {
+      const { wallet, owner1 } = await loadFixture(deployWalletFixture);
+
+      const balanceBefore = await ethers.provider.getBalance(wallet.target);
+
+      // Send with random 4-byte selector that doesn't match any function
+      await owner1.sendTransaction({
+        to: wallet.target,
+        value: ethers.parseEther("1"),
+        data: "0x12345678",
+      });
+
+      const balanceAfter = await ethers.provider.getBalance(wallet.target);
+      expect(balanceAfter - balanceBefore).to.equal(ethers.parseEther("1"));
+    });
+
+    it("Should accept zero-value transactions with data via fallback()", async function () {
+      const { wallet, owner1 } = await loadFixture(deployWalletFixture);
+
+      // Zero ETH but with data — should not revert
+      await expect(
+        owner1.sendTransaction({
+          to: wallet.target,
+          value: 0,
+          data: "0xdeadbeef",
+        })
+      )
+        .to.emit(wallet, "Deposit")
+        .withArgs(owner1.address, 0);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  //  onlyWallet Modifier Tests
+  // ──────────────────────────────────────────────────────────
+
+  describe("onlyWallet Modifier", function () {
+    it("Should revert when addOwner is called directly by an owner", async function () {
+      const { wallet, owner1, nonOwner } =
+        await loadFixture(deployWalletFixture);
+
+      await expect(
+        wallet.connect(owner1).addOwner(nonOwner.address)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+    });
+
+    it("Should revert when removeOwner is called directly by an owner", async function () {
+      const { wallet, owner1, owner3 } =
+        await loadFixture(deployWalletFixture);
+
+      await expect(
+        wallet.connect(owner1).removeOwner(owner3.address)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+    });
+
+    it("Should revert when changeRequirement is called directly by an owner", async function () {
+      const { wallet, owner1 } = await loadFixture(deployWalletFixture);
+
+      await expect(
+        wallet.connect(owner1).changeRequirement(1)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+    });
+
+    it("Should revert when governance functions are called by a non-owner", async function () {
+      const { wallet, nonOwner, recipient } =
+        await loadFixture(deployWalletFixture);
+
+      await expect(
+        wallet.connect(nonOwner).addOwner(recipient.address)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+
+      await expect(
+        wallet.connect(nonOwner).removeOwner(recipient.address)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+
+      await expect(
+        wallet.connect(nonOwner).changeRequirement(1)
+      ).to.be.revertedWithCustomError(wallet, "OnlyWallet");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  //  addOwner Tests (via Multisig)
+  // ──────────────────────────────────────────────────────────
+
+  describe("addOwner (via multisig)", function () {
+    it("Should add a new owner through the multisig execution flow", async function () {
+      const { wallet, owner1, owner2, nonOwner } =
+        await loadFixture(deployWalletFixture);
+
+      // nonOwner is not an owner initially
+      expect(await wallet.isOwner(nonOwner.address)).to.be.false;
+
+      // Encode addOwner calldata
+      const calldata = wallet.interface.encodeFunctionData("addOwner", [
+        nonOwner.address,
+      ]);
+
+      // Execute governance tx
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      // Verify the new owner was added
+      expect(await wallet.isOwner(nonOwner.address)).to.be.true;
+      const owners = await wallet.getOwners();
+      expect(owners.length).to.equal(4);
+      expect(owners[3]).to.equal(nonOwner.address);
+    });
+
+    it("Should emit OwnerAdded event", async function () {
+      const { wallet, owner1, owner2, nonOwner } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData("addOwner", [
+        nonOwner.address,
+      ]);
+
+      // Submit and approve
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      // Execute and check event
+      await expect(wallet.connect(owner1).executeTransaction(0))
+        .to.emit(wallet, "OwnerAdded")
+        .withArgs(nonOwner.address);
+    });
+
+    it("Should revert when adding a duplicate owner", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      // Try to add owner2 who is already an owner
+      const calldata = wallet.interface.encodeFunctionData("addOwner", [
+        owner2.address,
+      ]);
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      // Execution should revert because the internal call fails
+      await expect(
+        wallet.connect(owner1).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("Should revert when adding the zero address", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData("addOwner", [
+        ethers.ZeroAddress,
+      ]);
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(
+        wallet.connect(owner1).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("New owner should be able to participate in approvals after being added", async function () {
+      const { wallet, owner1, owner2, nonOwner, recipient } =
+        await loadFixture(deployWalletFixture);
+
+      // Add nonOwner as a new owner
+      const addCalldata = wallet.interface.encodeFunctionData("addOwner", [
+        nonOwner.address,
+      ]);
+      await executeGovernanceTx(wallet, owner1, owner2, addCalldata);
+
+      // Now nonOwner can submit and approve transactions
+      await wallet
+        .connect(nonOwner)
+        .submitTransaction(recipient.address, ethers.parseEther("1"), "0x");
+
+      const txId = (await wallet.getTransactionCount()) - 1n;
+      await wallet.connect(nonOwner).approveTransaction(txId);
+      await wallet.connect(owner1).approveTransaction(txId);
+
+      await expect(wallet.connect(nonOwner).executeTransaction(txId)).to.not.be
+        .reverted;
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  //  removeOwner Tests (via Multisig)
+  // ──────────────────────────────────────────────────────────
+
+  describe("removeOwner (via multisig)", function () {
+    it("Should remove an owner through the multisig execution flow", async function () {
+      const { wallet, owner1, owner2, owner3 } =
+        await loadFixture(deployWalletFixture);
+
+      expect(await wallet.isOwner(owner3.address)).to.be.true;
+
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        owner3.address,
+      ]);
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      expect(await wallet.isOwner(owner3.address)).to.be.false;
+      const owners = await wallet.getOwners();
+      expect(owners.length).to.equal(2);
+    });
+
+    it("Should emit OwnerRemoved event", async function () {
+      const { wallet, owner1, owner2, owner3 } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        owner3.address,
+      ]);
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(wallet.connect(owner1).executeTransaction(0))
+        .to.emit(wallet, "OwnerRemoved")
+        .withArgs(owner3.address);
+    });
+
+    it("Should auto-adjust requiredApprovals when it exceeds new owner count", async function () {
+      const { wallet, owner1, owner2, owner3 } =
+        await loadFixture(deployWalletFixture);
+
+      // Currently 2-of-3. Removing owner3 → 2 owners remain.
+      // requiredApprovals (2) == owners.length (2), so no adjustment needed.
+      expect(await wallet.requiredApprovals()).to.equal(2);
+
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        owner3.address,
+      ]);
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      // Still 2 — no auto-adjustment since 2 <= 2
+      expect(await wallet.requiredApprovals()).to.equal(2);
+      expect((await wallet.getOwners()).length).to.equal(2);
+    });
+
+    it("Should auto-reduce requiredApprovals to prevent wallet lockout", async function () {
+      const { wallet, owner1, owner2, owner3 } =
+        await loadFixture(deployWalletFixture);
+
+      // First: change requirement to 3-of-3
+      const changeCalldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [3]
+      );
+      await executeGovernanceTx(wallet, owner1, owner2, changeCalldata);
+      expect(await wallet.requiredApprovals()).to.equal(3);
+
+      // Now remove owner3. 3 > 2 owners remaining → auto-reduce to 2
+      const removeCalldata = wallet.interface.encodeFunctionData(
+        "removeOwner",
+        [owner3.address]
+      );
+
+      // Need all 3 approvals now
+      const txId = await wallet.getTransactionCount();
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, removeCalldata);
+      await wallet.connect(owner1).approveTransaction(txId);
+      await wallet.connect(owner2).approveTransaction(txId);
+      await wallet.connect(owner3).approveTransaction(txId);
+
+      await expect(wallet.connect(owner1).executeTransaction(txId))
+        .to.emit(wallet, "RequirementChanged")
+        .withArgs(2);
+
+      expect(await wallet.requiredApprovals()).to.equal(2);
+      expect((await wallet.getOwners()).length).to.equal(2);
+    });
+
+    it("Should revert when removing the last owner", async function () {
+      const [singleOwner] = await ethers.getSigners();
+
+      // Deploy a 1-of-1 wallet
+      const MultiSigWallet =
+        await ethers.getContractFactory("MultiSigWallet");
+      const wallet = await MultiSigWallet.deploy(
+        [singleOwner.address],
+        1
+      );
+
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        singleOwner.address,
+      ]);
+
+      await wallet
+        .connect(singleOwner)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(singleOwner).approveTransaction(0);
+
+      // Should fail: cannot remove last owner
+      await expect(
+        wallet.connect(singleOwner).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("Should revert when removing a non-owner address", async function () {
+      const { wallet, owner1, owner2, nonOwner } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        nonOwner.address,
+      ]);
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(
+        wallet.connect(owner1).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("Removed owner should no longer be able to submit transactions", async function () {
+      const { wallet, owner1, owner2, owner3, recipient } =
+        await loadFixture(deployWalletFixture);
+
+      // Remove owner3
+      const calldata = wallet.interface.encodeFunctionData("removeOwner", [
+        owner3.address,
+      ]);
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      // owner3 should now be rejected
+      await expect(
+        wallet
+          .connect(owner3)
+          .submitTransaction(recipient.address, ethers.parseEther("1"), "0x")
+      ).to.be.revertedWithCustomError(wallet, "NotOwner");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────
+  //  changeRequirement Tests (via Multisig)
+  // ──────────────────────────────────────────────────────────
+
+  describe("changeRequirement (via multisig)", function () {
+    it("Should change the approval threshold through multisig flow", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      expect(await wallet.requiredApprovals()).to.equal(2);
+
+      const calldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [1]
+      );
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      expect(await wallet.requiredApprovals()).to.equal(1);
+    });
+
+    it("Should emit RequirementChanged event", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [3]
+      );
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(wallet.connect(owner1).executeTransaction(0))
+        .to.emit(wallet, "RequirementChanged")
+        .withArgs(3);
+    });
+
+    it("Should revert when changing to zero", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      const calldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [0]
+      );
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(
+        wallet.connect(owner1).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("Should revert when changing to more than owner count", async function () {
+      const { wallet, owner1, owner2 } =
+        await loadFixture(deployWalletFixture);
+
+      // 3 owners, try to set requirement to 5
+      const calldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [5]
+      );
+
+      await wallet
+        .connect(owner1)
+        .submitTransaction(wallet.target, 0, calldata);
+      await wallet.connect(owner1).approveTransaction(0);
+      await wallet.connect(owner2).approveTransaction(0);
+
+      await expect(
+        wallet.connect(owner1).executeTransaction(0)
+      ).to.be.revertedWithCustomError(wallet, "TransactionFailed");
+    });
+
+    it("Changed requirement should affect subsequent transaction execution", async function () {
+      const { wallet, owner1, owner2, owner3, recipient } =
+        await loadFixture(deployWalletFixture);
+
+      // Change requirement from 2 to 1
+      const calldata = wallet.interface.encodeFunctionData(
+        "changeRequirement",
+        [1]
+      );
+      await executeGovernanceTx(wallet, owner1, owner2, calldata);
+
+      // Now submit a regular tx — only 1 approval should be needed
+      await wallet
+        .connect(owner1)
+        .submitTransaction(recipient.address, ethers.parseEther("1"), "0x");
+      const txId = (await wallet.getTransactionCount()) - 1n;
+      await wallet.connect(owner3).approveTransaction(txId);
+
+      // Should execute with just 1 approval
+      await expect(wallet.connect(owner1).executeTransaction(txId)).to.not.be
+        .reverted;
     });
   });
 

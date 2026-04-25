@@ -5,8 +5,11 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title MultiSigWallet
 /// @author Krack-Jack Team
-/// @notice A shared treasury wallet requiring M-of-N owner signatures before any transaction executes.
-/// @dev Modeled after Gnosis Safe architecture. Uses OpenZeppelin ReentrancyGuard on executeTransaction.
+/// @notice A production-ready M-of-N multi-signature treasury wallet with dynamic owner management.
+/// @dev Modeled after Gnosis Safe architecture. Governance functions (addOwner, removeOwner,
+///      changeRequirement) are gated behind the `onlyWallet` modifier — they can only be called
+///      by the contract itself, enforcing consensus via the standard submit → approve → execute flow.
+///      Uses OpenZeppelin ReentrancyGuard on executeTransaction and custom errors for gas efficiency.
 contract MultiSigWallet is ReentrancyGuard {
     // ─────────────────────────────────────────────
     //  Custom Errors (gas-optimized vs require strings)
@@ -24,11 +27,29 @@ contract MultiSigWallet is ReentrancyGuard {
     error InsufficientApprovals();
     error TransactionFailed();
 
+    /// @notice Thrown when a governance function is called directly instead of via multisig execution
+    error OnlyWallet();
+
+    /// @notice Thrown when submitTransaction targets the zero address
+    error SubmitToZeroAddress();
+
+    /// @notice Thrown when trying to add an address that is already an owner
+    error OwnerAlreadyExists(address owner);
+
+    /// @notice Thrown when trying to remove an address that is not an owner
+    error OwnerDoesNotExist(address owner);
+
+    /// @notice Thrown when trying to remove the last remaining owner
+    error CannotRemoveLastOwner();
+
+    /// @notice Thrown when the new requirement exceeds the owner count
+    error RequirementTooHigh(uint256 required, uint256 ownerCount);
+
     // ─────────────────────────────────────────────
     //  Events
     // ─────────────────────────────────────────────
 
-    /// @notice Emitted when ETH is deposited into the wallet via receive()
+    /// @notice Emitted when ETH is deposited into the wallet via receive() or fallback()
     /// @param sender The address that sent ETH
     /// @param amount The amount of ETH deposited (in wei)
     event Deposit(address indexed sender, uint256 amount);
@@ -61,6 +82,18 @@ contract MultiSigWallet is ReentrancyGuard {
     /// @param txId The transaction identifier
     /// @param owner The owner who triggered execution
     event Executed(uint256 indexed txId, address indexed owner);
+
+    /// @notice Emitted when a new owner is added to the wallet
+    /// @param owner The address of the newly added owner
+    event OwnerAdded(address indexed owner);
+
+    /// @notice Emitted when an owner is removed from the wallet
+    /// @param owner The address of the removed owner
+    event OwnerRemoved(address indexed owner);
+
+    /// @notice Emitted when the required approval threshold is changed
+    /// @param required The new number of required approvals
+    event RequirementChanged(uint256 required);
 
     // ─────────────────────────────────────────────
     //  Structs
@@ -105,6 +138,14 @@ contract MultiSigWallet is ReentrancyGuard {
         _;
     }
 
+    /// @notice Restricts function access to the wallet contract itself (Gnosis Safe pattern)
+    /// @dev Governance functions gated by this modifier can only be executed through
+    ///      the multisig submit → approve → execute flow, ensuring group consensus
+    modifier onlyWallet() {
+        if (msg.sender != address(this)) revert OnlyWallet();
+        _;
+    }
+
     /// @notice Ensures the transaction ID is valid
     /// @param _txId The transaction identifier to validate
     modifier txExists(uint256 _txId) {
@@ -145,16 +186,90 @@ contract MultiSigWallet is ReentrancyGuard {
     }
 
     // ─────────────────────────────────────────────
-    //  External / Public Functions
+    //  Receive & Fallback
     // ─────────────────────────────────────────────
 
-    /// @notice Allows the wallet to receive ETH directly
+    /// @notice Allows the wallet to receive ETH via plain transfers (no msg.data)
     receive() external payable {
         emit Deposit(msg.sender, msg.value);
     }
 
+    /// @notice Accepts ETH even when msg.data is non-empty and doesn't match any function selector
+    /// @dev Ensures the contract never rejects incoming ETH regardless of attached calldata
+    fallback() external payable {
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // ─────────────────────────────────────────────
+    //  Governance Functions (onlyWallet)
+    // ─────────────────────────────────────────────
+
+    /// @notice Adds a new owner to the wallet
+    /// @dev Can only be called by the contract itself via the multisig execution flow.
+    ///      An owner must submit a transaction with encoded `addOwner(newOwner)` calldata
+    ///      targeting `address(this)`, and the required approvals must be met before execution.
+    /// @param _owner The address of the new owner to add
+    function addOwner(address _owner) public onlyWallet {
+        if (_owner == address(0)) revert ZeroAddress();
+        if (isOwner[_owner]) revert OwnerAlreadyExists(_owner);
+
+        isOwner[_owner] = true;
+        owners.push(_owner);
+
+        emit OwnerAdded(_owner);
+    }
+
+    /// @notice Removes an existing owner from the wallet
+    /// @dev Uses swap-and-pop for O(1) gas-efficient removal from the owners array.
+    ///      If removing the owner would make `requiredApprovals > owners.length`, the
+    ///      requirement is automatically reduced to prevent the wallet from becoming locked.
+    ///      Can only be called by the contract itself via the multisig execution flow.
+    /// @param _owner The address of the owner to remove
+    function removeOwner(address _owner) public onlyWallet {
+        if (!isOwner[_owner]) revert OwnerDoesNotExist(_owner);
+        if (owners.length <= 1) revert CannotRemoveLastOwner();
+
+        isOwner[_owner] = false;
+
+        // Swap-and-pop: find the owner, swap with last element, then pop
+        uint256 len = owners.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (owners[i] == _owner) {
+                owners[i] = owners[len - 1];
+                owners.pop();
+                break;
+            }
+        }
+
+        emit OwnerRemoved(_owner);
+
+        // Auto-adjust requiredApprovals if it now exceeds owner count
+        if (requiredApprovals > owners.length) {
+            requiredApprovals = owners.length;
+            emit RequirementChanged(requiredApprovals);
+        }
+    }
+
+    /// @notice Changes the number of required approvals for transaction execution
+    /// @dev Can only be called by the contract itself via the multisig execution flow.
+    /// @param _requiredApprovals The new required approval count (must be > 0 and <= owners.length)
+    function changeRequirement(uint256 _requiredApprovals) public onlyWallet {
+        if (_requiredApprovals == 0) revert InvalidRequiredApprovals();
+        if (_requiredApprovals > owners.length)
+            revert RequirementTooHigh(_requiredApprovals, owners.length);
+
+        requiredApprovals = _requiredApprovals;
+
+        emit RequirementChanged(_requiredApprovals);
+    }
+
+    // ─────────────────────────────────────────────
+    //  External / Public Functions
+    // ─────────────────────────────────────────────
+
     /// @notice Submit a new transaction for approval
-    /// @param _to Target address for the transaction
+    /// @dev Reverts if `_to` is the zero address to prevent accidental ETH burns
+    /// @param _to Target address for the transaction (must not be address(0))
     /// @param _value Amount of ETH to send (in wei)
     /// @param _data Calldata to execute on the target address
     /// @return txId The unique identifier of the submitted transaction
@@ -163,6 +278,8 @@ contract MultiSigWallet is ReentrancyGuard {
         uint256 _value,
         bytes calldata _data
     ) external onlyOwner returns (uint256 txId) {
+        if (_to == address(0)) revert SubmitToZeroAddress();
+
         txId = transactions.length;
 
         transactions.push(
