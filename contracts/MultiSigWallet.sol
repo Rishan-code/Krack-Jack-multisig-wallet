@@ -408,4 +408,12 @@ contract MultiSigWallet is ReentrancyGuard {
     function getOwners() external view returns (address[] memory) {
         return owners;
     }
+
+    /// @notice Converts a normal string to a hexadecimal string (bytes) directly
+    /// @dev This utility can be used to easily convert plain strings to bytes for transaction data
+    /// @param _str The normal string to convert
+    /// @return The bytes (hexadecimal) representation of the string
+    function convertStringToBytes(string memory _str) public pure returns (bytes memory) {
+        return bytes(_str);
+    }
 }
