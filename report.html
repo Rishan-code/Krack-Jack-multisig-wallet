@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CS 218 — MultiSig Wallet Project Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;font-size:11pt;color:#1a1a2e;background:#fff;line-height:1.6}
+  .cover{background:linear-gradient(135deg,#0f3460 0%,#16213e 60%,#0f3460 100%);color:#fff;text-align:center;padding:60px 40px;page-break-after:always}
+  .cover h1{font-size:28pt;font-weight:700;letter-spacing:2px;margin-bottom:8px}
+  .cover h2{font-size:16pt;font-weight:300;opacity:.85;margin-bottom:30px}
+  .cover .badge{display:inline-block;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:30px;padding:6px 20px;font-size:10pt;margin:4px}
+  .cover table{margin:30px auto;border-collapse:collapse;font-size:10.5pt}
+  .cover table td{padding:8px 24px;border:1px solid rgba(255,255,255,0.25)}
+  .cover table td:first-child{font-weight:600;background:rgba(255,255,255,0.1)}
+  .cover .team{margin-top:30px;background:rgba(255,255,255,0.08);border-radius:12px;padding:20px 40px;display:inline-block}
+  .cover .team h3{font-size:11pt;font-weight:600;margin-bottom:12px;opacity:.7;letter-spacing:1px;text-transform:uppercase}
+  .cover .team table{margin:0;font-size:10pt}
+  .cover .team table td{padding:5px 20px;border:none}
+  .page{padding:40px 50px;max-width:900px;margin:0 auto}
+  h2.section{font-size:16pt;font-weight:700;color:#0f3460;border-bottom:3px solid #e94560;padding-bottom:8px;margin:30px 0 16px}
+  h3.sub{font-size:12pt;font-weight:600;color:#16213e;margin:20px 0 8px}
+  p{margin-bottom:10px;text-align:justify}
+  ul{margin:8px 0 12px 20px}
+  ul li{margin-bottom:4px}
+  table.data{width:100%;border-collapse:collapse;margin:12px 0;font-size:10pt}
+  table.data th{background:#0f3460;color:#fff;padding:8px 12px;text-align:left}
+  table.data td{padding:7px 12px;border-bottom:1px solid #e0e0e0}
+  table.data tr:nth-child(even) td{background:#f7f9ff}
+  .code{font-family:'JetBrains Mono',monospace;background:#1a1a2e;color:#e0e0ff;padding:16px 20px;border-radius:8px;font-size:9pt;margin:12px 0;overflow-x:auto;white-space:pre}
+  .highlight{background:#fff3cd;border-left:4px solid #ffc107;padding:10px 16px;margin:12px 0;border-radius:0 6px 6px 0}
+  .success{background:#d4edda;border-left:4px solid #28a745;padding:10px 16px;margin:12px 0;border-radius:0 6px 6px 0}
+  .arch-box{border:2px solid #0f3460;border-radius:10px;padding:20px;margin:16px 0;background:#f7f9ff}
+  .arch-flow{display:flex;align-items:flex-start;gap:0;margin:16px 0;flex-wrap:wrap}
+  .arch-step{background:#0f3460;color:#fff;border-radius:8px;padding:12px 16px;min-width:130px;text-align:center;font-size:9.5pt;position:relative}
+  .arch-arrow{font-size:20pt;color:#e94560;padding:8px 4px;line-height:1;align-self:center}
+  .func-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+  .func-card{border:1px solid #d0d8f0;border-radius:8px;padding:14px;background:#f7f9ff}
+  .func-card .fname{font-family:'JetBrains Mono',monospace;font-weight:600;color:#0f3460;font-size:10pt}
+  .func-card .faccess{font-size:8.5pt;color:#e94560;font-weight:600;margin:3px 0}
+  .func-card .fdesc{font-size:9.5pt;color:#444}
+  .coverage-bar{background:#e0e0e0;border-radius:4px;height:14px;margin:4px 0;overflow:hidden}
+  .coverage-fill{height:100%;background:linear-gradient(90deg,#28a745,#20c997);border-radius:4px;display:flex;align-items:center;padding-left:6px;font-size:8pt;color:#fff;font-weight:600}
+  .page-break{page-break-before:always}
+  @media print{
+    .cover{page-break-after:always}
+    .page-break{page-break-before:always}
+    body{font-size:10.5pt}
+    .page{padding:30px 40px}
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div style="font-size:10pt;opacity:.6;margin-bottom:8px">CS 218 — Programmable &amp; Interoperable Blockchain</div>
+  <h1>🔐 Multi-Signature Wallet</h1>
+  <h2>Project Report — Project 10</h2>
+  <div>
+    <span class="badge">Solidity 0.8.24</span>
+    <span class="badge">Hardhat</span>
+    <span class="badge">OpenZeppelin</span>
+    <span class="badge">React + Vite</span>
+  </div>
+  <br>
+  <table>
+    <tr><td>Course</td><td>CS 218 — Programmable &amp; Interoperable Blockchain</td></tr>
+    <tr><td>Project</td><td>Project 10 — Multi-Signature Wallet</td></tr>
+    <tr><td>Toolchain</td><td>Hardhat / Solidity / OpenZeppelin / ethers.js</td></tr>
+    <tr><td>Repository</td><td>github.com/Rishan-code/Krack-Jack-multisig-wallet</td></tr>
+  </table>
+  <div class="team">
+    <h3>Team: Krack-Jack</h3>
+    <table>
+      <tr><td>Jatin Singh</td><td>240003035</td></tr>
+      <tr><td>Krishnam Digga</td><td>240003043</td></tr>
+      <tr><td>Abhinav Jain</td><td>240003003</td></tr>
+      <tr><td>Rishan Gobe</td><td>240008023</td></tr>
+      <tr><td>Harsh Bhalla</td><td>240003033</td></tr>
+      <tr><td>Kartik Budhani</td><td>240005022</td></tr>
+      <tr><td>Arjun Dhamdhere</td><td>240005011</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- SECTION 1 — PROBLEM STATEMENT -->
+<div class="page">
+<h2 class="section">1. Problem Statement</h2>
+
+<h3 class="sub">1.1 The Problem</h3>
+<p>Managing shared funds in traditional finance requires trusting a single custodian — a bank, a treasurer, or an individual — who can unilaterally move money. This creates a single point of failure: if that person is compromised, hacked, or acts maliciously, funds are lost with no recourse.</p>
+<p>In decentralised systems, the problem is worse. A single private key controls an Ethereum address. If that key is stolen or lost, all funds are gone permanently — no bank to call, no chargeback, no recovery. For DAOs, investment clubs, corporate treasuries, or any multi-party arrangement, this is unacceptable.</p>
+
+<h3 class="sub">1.2 Why Blockchain is the Right Tool</h3>
+<ul>
+  <li><strong>Trustless execution:</strong> Smart contracts enforce the M-of-N rule in code — no single party can override it, not even the contract deployer.</li>
+  <li><strong>Immutable audit trail:</strong> Every submission, approval, revocation and execution is recorded on-chain via events. The full history is publicly verifiable.</li>
+  <li><strong>No intermediary:</strong> No bank, escrow agent, or lawyer is needed. The contract <em>is</em> the agreement.</li>
+  <li><strong>Programmable:</strong> The wallet executes arbitrary calldata — not just ETH transfers but any on-chain function call — enabling DAO governance, protocol interactions, and asset management.</li>
+  <li><strong>Composability:</strong> Any DeFi protocol, NFT contract, or DAO can be the target of a multi-sig transaction, making this a universal governance primitive.</li>
+</ul>
+
+<div class="highlight">
+  <strong>Real-world relevance:</strong> Gnosis Safe (our architecture inspiration) secures over $50 billion in assets for DAOs, protocols, and institutions — proving multi-sig is the industry standard for shared on-chain treasury management.
+</div>
+
+<h3 class="sub">1.3 Our Solution</h3>
+<p>We implement a configurable <strong>M-of-N Multi-Signature Wallet</strong> on Ethereum. Any N owners are defined at deployment; any transaction requires at least M approvals before it executes. Owners can submit transactions, approve, revoke, and execute — all enforced atomically on-chain with no trusted third party.</p>
+
+<!-- SECTION 2 — ARCHITECTURE -->
+<h2 class="section">2. Architecture Diagram</h2>
+
+<h3 class="sub">2.1 Transaction Lifecycle</h3>
+<div class="arch-box">
+  <div class="arch-flow">
+    <div class="arch-step">📝<br>Owner submits<br><code style="font-size:8pt">submitTransaction()</code></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">✅<br>M owners approve<br><code style="font-size:8pt">approveTransaction()</code></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">🔒<br>Threshold met<br>approvalCount ≥ M</div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">⚡<br>Any owner executes<br><code style="font-size:8pt">executeTransaction()</code></div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">🎯<br>External call<br>ETH + calldata sent</div>
+  </div>
+  <p style="font-size:9pt;color:#666;margin-top:8px">Owners may also call <code>revokeApproval()</code> at any time before execution to withdraw their vote.</p>
+</div>
+
+<h3 class="sub">2.2 Contract Functions</h3>
+<div class="func-grid">
+  <div class="func-card">
+    <div class="fname">constructor(owners[], requiredApprovals)</div>
+    <div class="faccess">DEPLOY-TIME</div>
+    <div class="fdesc">Sets up N owners (validated: no duplicates, no zero-address) and M threshold. Immutable after deployment.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">submitTransaction(to, value, data)</div>
+    <div class="faccess">onlyOwner · external</div>
+    <div class="fdesc">Creates a new Transaction struct in storage. Emits TransactionSubmitted. Returns txId.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">approveTransaction(txId)</div>
+    <div class="faccess">onlyOwner · external</div>
+    <div class="fdesc">Records msg.sender's approval. Increments approvalCount. Guards: txExists, notExecuted, not double-approved.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">revokeApproval(txId)</div>
+    <div class="faccess">onlyOwner · external</div>
+    <div class="fdesc">Removes approval, decrements approvalCount. Allows owners to change their vote before execution.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">executeTransaction(txId)</div>
+    <div class="faccess">onlyOwner · nonReentrant · external</div>
+    <div class="fdesc">Checks approvalCount ≥ M. Marks executed=true (CEI). Then sends ETH + calldata via low-level call.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">receive()</div>
+    <div class="faccess">external payable</div>
+    <div class="fdesc">Allows wallet to receive ETH directly. Emits Deposit event for off-chain tracking.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">getTransaction / getOwners / getApprovers / getTransactionCount</div>
+    <div class="faccess">external view — free</div>
+    <div class="fdesc">Read-only helpers for the frontend and external integrations. No gas cost when called off-chain.</div>
+  </div>
+  <div class="func-card">
+    <div class="fname">isOwner / approved / owners / requiredApprovals / transactions</div>
+    <div class="faccess">public state variables</div>
+    <div class="fdesc">Auto-generated getters expose all core state. Fast O(1) owner lookups via mapping(address→bool).</div>
+  </div>
+</div>
+
+<h3 class="sub">2.3 Data Structures</h3>
+<div class="code">struct Transaction {
+    address to;           // target address
+    uint256 value;        // ETH to send (wei)
+    bytes data;           // arbitrary calldata
+    uint256 approvalCount;// running approval tally
+    bool executed;        // replay protection flag
+}
+
+Transaction[] public transactions;                         // array of all txs
+mapping(address => bool) public isOwner;                  // O(1) owner lookup
+mapping(uint256 => mapping(address => bool)) public approved; // per-tx approvals</div>
+
+</div>
+
+<!-- SECTION 3 — SECURITY -->
+<div class="page page-break">
+<h2 class="section">3. Security Analysis</h2>
+
+<h3 class="sub">3.1 Reentrancy Attack — Prevented</h3>
+<p>The most critical vulnerability in ETH-sending contracts is reentrancy. An attacker contract's <code>receive()</code> can call back into <code>executeTransaction()</code> before state is updated, draining funds multiple times.</p>
+<p><strong>Double protection applied:</strong></p>
+<ul>
+  <li><strong>Checks-Effects-Interactions (CEI):</strong> <code>txn.executed = true</code> is set <em>before</em> the external <code>.call()</code>. Any reentry attempt hits the <code>notExecuted</code> modifier and reverts immediately.</li>
+  <li><strong>OpenZeppelin ReentrancyGuard:</strong> The <code>nonReentrant</code> modifier on <code>executeTransaction</code> uses a mutex lock that blocks all reentrant calls at the EVM level.</li>
+</ul>
+<div class="code">// CEI Pattern — Effects before Interactions
+function executeTransaction(uint256 _txId)
+    external onlyOwner txExists(_txId) notExecuted(_txId) nonReentrant
+{
+    Transaction storage txn = transactions[_txId];
+    if (txn.approvalCount &lt; requiredApprovals) revert InsufficientApprovals();
+
+    txn.executed = true;                              // ← EFFECT first
+    (bool success, ) = txn.to.call{value: txn.value}(txn.data); // ← INTERACTION second
+    if (!success) revert TransactionFailed();
+}</div>
+<div class="success">✅ Tested with <code>ReentrancyAttacker.sol</code> — the attacker's <code>receive()</code> attempts re-entry, receives only 1 ETH, and the wallet balance is intact.</div>
+
+<h3 class="sub">3.2 Access Control — Prevented</h3>
+<p>All state-changing functions are protected by the <code>onlyOwner</code> modifier:</p>
+<div class="code">modifier onlyOwner() {
+    if (!isOwner[msg.sender]) revert NotOwner();
+    _;
+}</div>
+<p>The <code>isOwner</code> mapping provides O(1) lookup. Non-owners calling any function receive a <code>NotOwner</code> revert — verified by tests for all 4 state-changing functions.</p>
+
+<h3 class="sub">3.3 Replay / Double-Execution — Prevented</h3>
+<p>Once a transaction is executed, <code>txn.executed = true</code> is permanent. The <code>notExecuted</code> modifier blocks any subsequent call to approve, revoke, or execute the same transaction.</p>
+
+<h3 class="sub">3.4 Input Validation — Prevented</h3>
+<table class="data">
+  <tr><th>Attack / Bad Input</th><th>Guard</th><th>Error</th></tr>
+  <tr><td>Empty owners array</td><td>constructor check</td><td>InvalidOwnerCount</td></tr>
+  <tr><td>Zero required approvals</td><td>constructor check</td><td>InvalidRequiredApprovals</td></tr>
+  <tr><td>requiredApprovals &gt; owners.length</td><td>constructor check</td><td>InvalidRequiredApprovals</td></tr>
+  <tr><td>Zero-address owner</td><td>constructor loop</td><td>ZeroAddress</td></tr>
+  <tr><td>Duplicate owner address</td><td>isOwner mapping check</td><td>DuplicateOwner</td></tr>
+  <tr><td>Non-existent txId</td><td>txExists modifier</td><td>TransactionDoesNotExist</td></tr>
+  <tr><td>Double approval by same owner</td><td>approved mapping check</td><td>TransactionAlreadyApproved</td></tr>
+  <tr><td>Revoke without prior approval</td><td>approved mapping check</td><td>TransactionNotApproved</td></tr>
+  <tr><td>Execute with insufficient approvals</td><td>approvalCount check</td><td>InsufficientApprovals</td></tr>
+  <tr><td>Integer overflow/underflow</td><td>Solidity ^0.8.24 built-in</td><td>automatic revert</td></tr>
+</table>
+
+<h3 class="sub">3.5 Visibility Hardening</h3>
+<p>All public-facing functions use <code>external</code> visibility (cheaper than <code>public</code> for calldata parameters). Internal helpers are modifiers. No internal state is accidentally exposed.</p>
+
+<!-- SECTION 4 — GAS OPTIMISATION -->
+<h2 class="section">4. Gas Optimisation</h2>
+
+<h3 class="sub">4.1 Gas Report Output</h3>
+<p>Generated via <code>REPORT_GAS=true npx hardhat test</code> with Solidity optimizer enabled at 200 runs.</p>
+<table class="data">
+  <tr><th>Method</th><th>Min Gas</th><th>Max Gas</th><th>Avg Gas</th><th>Calls</th></tr>
+  <tr><td>approveTransaction</td><td>57,456</td><td>74,568</td><td>67,357</td><td>38</td></tr>
+  <tr><td>executeTransaction</td><td>71,261</td><td>102,201</td><td>77,603</td><td>15</td></tr>
+  <tr><td>revokeApproval</td><td>32,277</td><td>35,546</td><td>33,094</td><td>4</td></tr>
+  <tr><td>submitTransaction</td><td>64,502</td><td>121,920</td><td>98,611</td><td>30</td></tr>
+</table>
+<table class="data">
+  <tr><th>Contract</th><th>Deployment Gas</th><th>% of Block Limit</th></tr>
+  <tr><td>MultiSigWallet</td><td>1,287,492</td><td>2.1%</td></tr>
+  <tr><td>ReentrancyAttacker</td><td>180,912</td><td>0.3%</td></tr>
+  <tr><td>SimpleCounter</td><td>100,489</td><td>0.2%</td></tr>
+</table>
+
+<h3 class="sub">4.2 Before / After Optimisation — Custom Errors vs require() Strings</h3>
+<p><strong>Before (require strings):</strong></p>
+<div class="code">modifier onlyOwner() {
+    require(isOwner[msg.sender], "MultiSigWallet: caller is not an owner");
+    _;
+}
+function executeTransaction(uint256 _txId) external ... {
+    require(txn.approvalCount >= requiredApprovals, "MultiSigWallet: insufficient approvals");
+    require(success, "MultiSigWallet: transaction execution failed");
+}</div>
+<p><strong>After (custom errors — current implementation):</strong></p>
+<div class="code">error NotOwner();
+error InsufficientApprovals();
+error TransactionFailed();
+
+modifier onlyOwner() {
+    if (!isOwner[msg.sender]) revert NotOwner();
+    _;
+}</div>
+
+<table class="data">
+  <tr><th>Metric</th><th>Before (require strings)</th><th>After (custom errors)</th><th>Savings</th></tr>
+  <tr><td>Deployment gas</td><td>~1,290,000</td><td>1,287,492</td><td>~2,500 gas</td></tr>
+  <tr><td>approveTransaction revert</td><td>~24,500</td><td>~24,200</td><td>~300 gas</td></tr>
+  <tr><td>executeTransaction revert</td><td>~24,800</td><td>~24,400</td><td>~400 gas</td></tr>
+  <tr><td>Bytecode size</td><td>~5.2 KB</td><td>~5.0 KB</td><td>~200 bytes</td></tr>
+</table>
+
+<h3 class="sub">4.3 Additional Optimisations</h3>
+<table class="data">
+  <tr><th>Optimisation</th><th>Technique</th><th>Impact</th></tr>
+  <tr><td>Storage caching</td><td><code>Transaction storage txn = transactions[_txId]</code></td><td>~100 gas saved per avoided SLOAD</td></tr>
+  <tr><td>external over public</td><td>All functions use <code>external</code></td><td>~60 gas per calldata-heavy call</td></tr>
+  <tr><td>uint256 for all state</td><td>No uint8/uint128 packing needed</td><td>Avoids EVM padding overhead</td></tr>
+  <tr><td>Optimizer at 200 runs</td><td>hardhat.config.js optimizer enabled</td><td>~5–10% runtime savings</td></tr>
+</table>
+
+<!-- SECTION 5 — COVERAGE -->
+<h2 class="section">5. Test Coverage Report</h2>
+<p>Generated via <code>npx hardhat coverage</code> (solidity-coverage plugin).</p>
+
+<h3 class="sub">5.1 Coverage Summary</h3>
+<table class="data">
+  <tr><th>File</th><th>% Statements</th><th>% Branches</th><th>% Functions</th><th>% Lines</th></tr>
+  <tr><td>MultiSigWallet.sol</td><td>100%</td><td>90.74%</td><td>100%</td><td>100%</td></tr>
+  <tr><td>SimpleCounter.sol</td><td>100%</td><td>100%</td><td>100%</td><td>100%</td></tr>
+  <tr><td>ReentrancyAttacker.sol</td><td>100%</td><td>50%</td><td>100%</td><td>100%</td></tr>
+  <tr><td><strong>All files</strong></td><td><strong>100%</strong></td><td><strong>89.29%</strong></td><td><strong>100%</strong></td><td><strong>100%</strong></td></tr>
+</table>
+
+<h3 class="sub">5.2 Visual Coverage</h3>
+<div style="margin:12px 0">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="width:120px;font-size:10pt">Statements</span><div class="coverage-bar" style="flex:1"><div class="coverage-fill" style="width:100%">100%</div></div></div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="width:120px;font-size:10pt">Branches</span><div class="coverage-bar" style="flex:1"><div class="coverage-fill" style="width:89.29%">89.29%</div></div></div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px"><span style="width:120px;font-size:10pt">Functions</span><div class="coverage-bar" style="flex:1"><div class="coverage-fill" style="width:100%">100%</div></div></div>
+  <div style="display:flex;align-items:center;gap:12px"><span style="width:120px;font-size:10pt">Lines</span><div class="coverage-bar" style="flex:1"><div class="coverage-fill" style="width:100%">100%</div></div></div>
+</div>
+<div class="success">✅ 100% line coverage — exceeds the required 70% threshold. 39 tests passing across all core functions.</div>
+
+<h3 class="sub">5.3 Test Suite Summary</h3>
+<table class="data">
+  <tr><th>Test Group</th><th>Tests</th><th>Coverage</th></tr>
+  <tr><td>Constructor validation</td><td>6</td><td>Empty owners, zero approvals, duplicates, zero-address, threshold &gt; N</td></tr>
+  <tr><td>submitTransaction</td><td>3</td><td>Happy path, event emission, non-owner revert</td></tr>
+  <tr><td>approveTransaction</td><td>6</td><td>Happy path, event, non-owner, double-approve, non-existent tx, already-executed</td></tr>
+  <tr><td>revokeApproval</td><td>5</td><td>Happy path, event, revoke-without-approval, revoke-after-execute, blocks execution</td></tr>
+  <tr><td>executeTransaction</td><td>6</td><td>Happy path, event, insufficient approvals, re-execute, non-owner, non-existent</td></tr>
+  <tr><td>Calldata execution</td><td>2</td><td>SimpleCounter increment, sequential multiple calls</td></tr>
+  <tr><td>ETH handling</td><td>3</td><td>receive() + Deposit event, balance check, ETH transfer on execute</td></tr>
+  <tr><td>Full happy path</td><td>1</td><td>End-to-end: submit → approve → execute → verify state</td></tr>
+  <tr><td>View functions</td><td>5</td><td>getTransaction, getApprovers, getTransactionCount, getOwners, revert on invalid</td></tr>
+  <tr><td>Reentrancy protection</td><td>1</td><td>ReentrancyAttacker blocked, single ETH transfer, executed flag set</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>39</strong></td><td></td></tr>
+</table>
+
+<div style="margin-top:40px;padding-top:16px;border-top:2px solid #e0e0e0;font-size:9pt;color:#666;text-align:center">
+  CS 218 — Programmable &amp; Interoperable Blockchain | Project 10 | Team Krack-Jack<br>
+  Toolchain: Hardhat 2.28 · Solidity 0.8.24 · OpenZeppelin 5.6 · ethers.js 6 · React + Vite
+</div>
+</div>
+
+</body>
+</html>
