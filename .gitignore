@@ -1,28 +1,22 @@
 # Dependencies
 node_modules/
 
-# Hardhat
+# Hardhat auto-generated (rebuild with: npx hardhat compile / test)
 cache/
 artifacts/
-coverage/
-coverage.json
-gas-report.txt
 typechain-types/
 
-# Foundry (legacy)
-out/
+# Reports — raw auto-generated outputs (reports/*.md are committed, raw txt is not)
+reports/gas-report.txt
+coverage/
+coverage.json
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
-
-# Docs
-docs/
+# Trash folder — local scratch only, never commit
+trash/
 
 # Dotenv file
 .env
 
-# Frontend generated files
-frontend/deployment.json
-frontend/abi.json
+# Frontend generated files (written by deploy script at runtime)
+frontend/public/deployment.json
+frontend/public/abi.json

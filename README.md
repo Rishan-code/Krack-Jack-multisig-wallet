@@ -39,21 +39,31 @@ A shared treasury wallet requiring **M-of-N owner signatures** before any transa
 contracts/
 ├── MultiSigWallet.sol          # Main multi-sig wallet contract
 ├── SimpleCounter.sol            # Helper contract for calldata testing
-└── test/
+└── mocks/
     └── ReentrancyAttacker.sol   # Attack contract for security testing
 
 test/
 └── MultiSigWallet.test.js      # Comprehensive test suite (39 tests)
 
 scripts/
-└── deploy.js                   # Hardhat deployment script
+├── deploy.js                   # Deploy to local Hardhat node
+└── deploy-sepolia.js           # Deploy to Sepolia testnet
+
+reports/
+├── gas-report.md               # Gas analysis with before/after optimisation
+└── gas-report.txt              # Raw output from hardhat-gas-reporter (auto-generated)
 
 frontend/
-├── index.html                   # DApp UI
-├── styles.css                   # Dark theme styling
-├── app.js                       # ethers.js + MetaMask integration
-├── abi.json                     # Contract ABI (auto-generated on deploy)
-└── deployment.json              # Deployment addresses (auto-generated)
+├── index.html                   # Vite entry point
+├── src/
+│   ├── App.jsx                  # Root component
+│   ├── components/              # UI components (Header, SubmitForm, TransactionCard, ...)
+│   ├── context/Web3Context.jsx  # MetaMask / ethers.js connection
+│   ├── hooks/useContract.js     # Contract interaction hook
+│   └── utils/                   # ABI, constants, helpers
+└── public/
+    ├── abi.json                 # Contract ABI (auto-generated on deploy)
+    └── deployment.json          # Deployment addresses (auto-generated)
 ```
 
 ---
@@ -148,7 +158,7 @@ After deploying, open `frontend/index.html` in your browser. The deployment scri
 
 ## ⛽ Gas Optimization
 
-See [gas-report.md](./gas-report.md) for the full gas report and before/after optimization analysis.
+See [reports/gas-report.md](./reports/gas-report.md) for the full gas report and before/after optimization analysis.
 
 **Key Optimizations Applied:**
 - **Custom Errors** over `require()` strings — saves ~200 gas per revert
