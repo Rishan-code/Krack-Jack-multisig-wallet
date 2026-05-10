@@ -6,7 +6,7 @@ A shared treasury wallet requiring **M-of-N owner signatures** before any transa
 
 ---
 
-## 👥 Team: Krack-Jack
+## 👥 Team Core
 
 | Name | Roll Number |
 |------|-------------|
