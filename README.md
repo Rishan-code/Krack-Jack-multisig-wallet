@@ -10,11 +10,13 @@ A shared treasury wallet requiring **M-of-N owner signatures** before any transa
 
 | Name | Roll Number |
 |------|-------------|
-| Member 1 | XXXXXXXXX |
-| Member 2 | XXXXXXXXX |
-| Member 3 | XXXXXXXXX |
-
-> ⚠️ **Update the table above with your actual team member names and roll numbers.**
+| Jatin Singh | 240003035 |
+| Krishnam Digga | 240003043 |
+| Abhinav Jain | 240003003 |
+| Rishan Gobe | 240008023 |
+| Harsh Bhalla | 240003033 |
+| Kartik Budhani | 240005022 |
+| Arjun Dhamdhere | 240005011 |
 
 ---
 
