@@ -29,7 +29,7 @@ A shared treasury wallet requiring **M-of-N owner signatures** before any transa
 - **Calldata Execution**: Execute arbitrary function calls on external contracts
 - **Reentrancy Protection**: OpenZeppelin `ReentrancyGuard` + Checks-Effects-Interactions pattern
 - **Gas Optimized**: Custom errors instead of revert strings, storage caching
-- **Frontend DApp**: MetaMask-connected UI to manage all wallet operations
+- **Frontend DApp**: MetaMask-connected React UI to manage all wallet operations
 
 ---
 
@@ -51,7 +51,8 @@ scripts/
 
 reports/
 ├── gas-report.md               # Gas analysis with before/after optimisation
-└── gas-report.txt              # Raw output from hardhat-gas-reporter (auto-generated)
+├── coverage-report.txt         # Test coverage report output
+└── report.pdf                  # Full project report
 
 frontend/
 ├── index.html                   # Vite entry point
@@ -73,6 +74,7 @@ frontend/
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
+- [npm](https://www.npmjs.com/) (v8+)
 - [MetaMask](https://metamask.io/) browser extension
 - Git
 
@@ -99,17 +101,11 @@ npx hardhat test
 # Run tests with gas reporting
 REPORT_GAS=true npx hardhat test
 
-# Run tests with verbose output
-npx hardhat test --verbose
-```
-
-### 4. Check Coverage
-
-```bash
+# Run tests with coverage
 npx hardhat coverage
 ```
 
-### 5. Deploy to Local Network
+### 4. Deploy to Local Network
 
 ```bash
 # Terminal 1: Start local Hardhat node
@@ -119,9 +115,22 @@ npx hardhat node
 npx hardhat run scripts/deploy.js --network localhost
 ```
 
+### 5. Deploy to Sepolia Testnet
+
+```bash
+# Ensure .env has PRIVATE_KEY and SEPOLIA_RPC_URL set
+npx hardhat run scripts/deploy-sepolia.js --network sepolia
+```
+
 ### 6. Run Frontend DApp
 
-After deploying, open `frontend/index.html` in your browser. The deployment script auto-generates `abi.json` and `deployment.json` in the frontend folder.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser. Connect MetaMask to Localhost 8545 (Chain ID: 31337) or Sepolia.
 
 **MetaMask Setup for Local Testing:**
 1. Add Hardhat Network: RPC URL `http://127.0.0.1:8545`, Chain ID `31337`
@@ -156,33 +165,77 @@ After deploying, open `frontend/index.html` in your browser. The deployment scri
 
 ---
 
-## ⛽ Gas Optimization
+## ⛽ Gas Optimisation
 
-See [reports/gas-report.md](./reports/gas-report.md) for the full gas report and before/after optimization analysis.
+See [`reports/gas-report.md`](./reports/gas-report.md) for the full report.
 
-**Key Optimizations Applied:**
-- **Custom Errors** over `require()` strings — saves ~200 gas per revert
-- **Storage Caching** — `Transaction storage txn = transactions[_txId]` avoids repeated SLOAD
-- **`uint256`** for all counters — avoids extra gas for smaller integer packing
-- **`external`** visibility on public-facing functions — cheaper than `public` for calldata
-- **Optimizer enabled** at 200 runs
+### Key Optimisation: Custom Errors vs `require()` Strings
+
+**Function optimised:** All functions — most impactful on `executeTransaction` and `approveTransaction`.
+
+**Before** (require strings):
+```solidity
+modifier onlyOwner() {
+    require(isOwner[msg.sender], "MultiSigWallet: caller is not an owner");
+    _;
+}
+function executeTransaction(...) external ... {
+    require(txn.approvalCount >= requiredApprovals, "MultiSigWallet: insufficient approvals");
+    require(success, "MultiSigWallet: transaction execution failed");
+}
+```
+
+**After** (custom errors — current implementation):
+```solidity
+error NotOwner();
+error InsufficientApprovals();
+modifier onlyOwner() {
+    if (!isOwner[msg.sender]) revert NotOwner();
+    _;
+}
+```
+
+| Metric | Before | After | Savings |
+|--------|--------|-------|---------|
+| Deployment gas | ~1,290,000 | 1,287,492 | ~2,500 gas |
+| `approveTransaction` revert | ~24,500 | ~24,200 | ~300 gas |
+| `executeTransaction` revert | ~24,800 | ~24,400 | ~400 gas |
+| Bytecode size | ~5.2 KB | ~5.0 KB | ~200 bytes |
+
+**Why it works:** `require()` strings are ABI-encoded and stored in bytecode (~40–50 bytes each). Custom errors use only a 4-byte selector — identical to a function selector — saving deployment gas and reducing revert cost at runtime.
+
+**Additional optimisations:**
+- `Transaction storage txn = transactions[_txId]` — avoids repeated SLOAD (~100 gas saved)
+- `external` over `public` on all functions — calldata cheaper than memory (~60 gas per call)
+- Optimizer at 200 runs in `hardhat.config.js`
 
 ---
 
 ## 🧪 Test Coverage
 
-The test suite includes **39 tests** covering:
+The test suite includes **39 tests** with **100% line coverage** (≥70% required).
 
-- ✅ Constructor validation (empty owners, zero approvals, duplicates, zero-address)
-- ✅ Submit transaction (owner-only, event emission)
-- ✅ Approve transaction (owner-only, double-approve prevention, executed check)
-- ✅ Revoke approval (decrement count, block execution until re-approved)
-- ✅ Execute transaction (threshold check, CEI pattern, re-execute prevention)
-- ✅ Calldata execution (SimpleCounter increment via multi-sig)
-- ✅ ETH handling (receive, deposit event, send on execute)
-- ✅ Full happy path (submit → approve → execute → verify state)
-- ✅ Reentrancy attack prevention
-- ✅ View function correctness
+```
+File                     |  % Stmts | % Branch |  % Funcs |  % Lines |
+-------------------------|----------|----------|----------|----------|
+ MultiSigWallet.sol      |      100 |    90.74 |      100 |      100 |
+ SimpleCounter.sol       |      100 |      100 |      100 |      100 |
+ ReentrancyAttacker.sol  |      100 |       50 |      100 |      100 |
+ All files               |      100 |    89.29 |      100 |      100 |
+```
+
+Full coverage report: [`reports/coverage-report.txt`](./reports/coverage-report.txt)
+
+---
+
+## ⚠️ Known Issues / Limitations
+
+1. **Fixed owner set:** Owners are set at deployment and cannot be added or removed after. A future upgrade could implement owner management with multi-sig approval for changes.
+2. **No transaction cancellation:** A submitted transaction cannot be deleted — only left with insufficient approvals. This is by design (immutable audit trail) but limits cleanup.
+3. **No deadline / expiry:** Transactions have no time limit. A pending transaction can remain open indefinitely. A `deadline` field could be added to auto-expire stale proposals.
+4. **ETH-only treasury:** The wallet holds ETH natively but interacts with ERC-20 tokens only via calldata. A native ERC-20 balance view is not included in the contract (readable via calldata execution).
+5. **Frontend requires manual ABI update:** After redeployment, `frontend/public/abi.json` and `deployment.json` must be regenerated via the deploy script. This is handled automatically by `scripts/deploy.js`.
+6. **Sepolia RPC rate limits:** The public Sepolia RPC (`https://rpc.sepolia.org`) may throttle requests under load. Use Alchemy or Infura RPC for production deployments.
 
 ---
 
